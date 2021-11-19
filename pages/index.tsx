@@ -1,4 +1,5 @@
 import {
+  buffer,
   FeatureCollection,
   Geometry,
   GeometryCollection,
@@ -37,15 +38,18 @@ const initialViewState: ViewportState = {
 const Home: NextPage = () => {
   const [viewSate, setViewState] = useState<ViewportState>(initialViewState);
   const [inputText, setInputText] = useState<string>("");
-  const [geojson, setGeojson] = useState<
+  const [sampleGeojson, setSampleGeojson] = useState<
+    FeatureCollection<Geometry | GeometryCollection, Properties> | undefined
+  >();
+  const [buffered, setBuffered] = useState<
     FeatureCollection<Geometry | GeometryCollection, Properties> | undefined
   >();
 
   const updateGeojson = (text: string) => {
     if (isValidGeoJson(text)) {
-      setGeojson(JSON.parse(text));
+      setSampleGeojson(JSON.parse(text));
     } else {
-      setGeojson(undefined);
+      setSampleGeojson(undefined);
     }
   };
 
@@ -66,6 +70,9 @@ const Home: NextPage = () => {
       </Head>
 
       <main className={styles.main}>
+        <h1 className={styles.title}>
+          Using <a href="https://turfjs.org/">TurfJS</a> in a webworker
+        </h1>
         <div>
           <div className={styles.grid}>
             <label htmlFor="textarea">Sample GeoJSON</label>
@@ -73,8 +80,8 @@ const Home: NextPage = () => {
               style={{
                 width: "800px",
                 maxWidth: "800px",
-                height: "200px",
-                maxHeight: "200px",
+                height: "150px",
+                maxHeight: "150px",
               }}
               value={inputText}
               onChange={(e) => {
@@ -82,7 +89,7 @@ const Home: NextPage = () => {
                 updateGeojson(e.target.value);
               }}
             />
-            {geojson === undefined && (
+            {sampleGeojson === undefined && (
               <div>
                 <span style={{ color: "red" }}>Invalid GeoJSON</span>
               </div>
@@ -101,15 +108,48 @@ const Home: NextPage = () => {
           >
             {
               //@ts-ignore
-              <Source id="sampleData" type="geojson" data={geojson}>
+              <Source id="sampleData" type="geojson" data={sampleGeojson}>
                 <Layer
-                  id="smapleLayer"
+                  id="sampleLayer"
                   paint={{ "circle-color": "#aa66dd" }}
                   type="circle"
                 />
               </Source>
             }
+            {buffered && 
+              //@ts-ignore
+              <Source id={"bufferRing"} type="geojson" data={buffered}>
+              <Layer
+                id="bufferRingLayer"
+                paint={{ "line-color": "#66eeaa" }}
+                type="line"
+              />
+              <Layer
+                id="bufferRingLayerFill"
+                paint={{ "fill-color": "#66eeaa", "fill-opacity": 0.2 }}
+                type="fill"
+              />
+              </Source>
+            }
           </ReactMapGl>
+        </div>
+        <div>
+          <div className={styles.grid}>
+            <button onClick={() => setBuffered(undefined)}>Clear buffer</button>
+            <button
+              onClick={() => {
+                if (sampleGeojson !== undefined) {
+                  const start = Date.now();
+                  const buf = buffer(sampleGeojson, 10, { units: "kilometers" });
+                  setBuffered(buf);
+                  const end = Date.now();
+                  console.log(`Buffer took ${end - start}ms`, buf);
+                }
+              }}
+            >
+              Run buffer Synchronously
+            </button>
+          </div>
         </div>
       </main>
     </div>
