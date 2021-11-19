@@ -8,9 +8,13 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@turf/turf": "^6.5.0",
+    "geojson-validation": "^1.0.2",
+    "maplibre-gl": "^1.15.2",
     "next": "12.0.4",
     "react": "17.0.2",
-    "react-dom": "17.0.2"
+    "react-dom": "17.0.2",
+    "react-map-gl": "^6.1.17"
   },
   "devDependencies": {
     "@types/node": "16.11.9",
