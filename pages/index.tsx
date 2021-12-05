@@ -1,4 +1,5 @@
 import {
+  AllGeoJSON,
   buffer,
   FeatureCollection,
   Geometry,
@@ -8,60 +9,30 @@ import {
 import type { NextPage } from "next";
 import Head from "next/head";
 import { useEffect, useState } from "react";
-import { isValidGeoJson } from "../src/helpers";
 import styles from "../styles/Home.module.css";
-import ReactMapGl, {
-  InteractiveMapProps,
-  Layer,
-  Source,
-  ViewState,
-} from "react-map-gl";
 import Loader from "react-loader-spinner";
+import { GeojsonInput } from "../src/components/GeojsonInput";
+import { ReactMap } from "../src/components/ReactMap";
+import { TurfFunction } from "../src/workers/turf.worker";
 
-type ViewportState = Pick<
-  InteractiveMapProps,
-  | "altitude"
-  | "bearing"
-  | "latitude"
-  | "longitude"
-  | "pitch"
-  | "zoom"
-  | "transitionDuration"
-  | "width"
-  | "height"
->;
-
-const initialViewState: ViewportState = {
-  latitude: 0,
-  longitude: 0,
-  zoom: 1,
-};
+const bufferDistance = 10;
+const bufferUnit = "kilometers";
 
 const Home: NextPage = () => {
   const [loading, setLoading] = useState(true);
-  const [viewSate, setViewState] = useState<ViewportState>(initialViewState);
-  const [inputText, setInputText] = useState<string>("");
-  const [sampleGeojson, setSampleGeojson] = useState<
+  const [times, setTimes] = useState({ sync: -1, async: -1 });
+  const [geojson, setGeojson] = useState<
     FeatureCollection<Geometry | GeometryCollection, Properties> | undefined
   >();
   const [buffered, setBuffered] = useState<
     FeatureCollection<Geometry | GeometryCollection, Properties> | undefined
   >();
 
-  const updateGeojson = (text: string) => {
-    if (isValidGeoJson(text)) {
-      setSampleGeojson(JSON.parse(text));
-    } else {
-      setSampleGeojson(undefined);
-    }
-  };
-
   useEffect(() => {
     fetch("./test.geojson")
-      .then((res) => res.text())
-      .then((text) => {
-        setInputText(text);
-        updateGeojson(text);
+      .then((res) => res.json())
+      .then((json) => {
+        setGeojson(json);
         setLoading(false);
       });
   }, []);
@@ -83,63 +54,14 @@ const Home: NextPage = () => {
           <>
             <div>
               <div className={styles.grid}>
-                <label htmlFor="textarea">Sample GeoJSON</label>
-                <textarea
-                  style={{
-                    width: "800px",
-                    maxWidth: "800px",
-                    height: "150px",
-                    maxHeight: "150px",
-                  }}
-                  value={inputText}
-                  onChange={(e) => {
-                    setInputText(e.target.value);
-                    updateGeojson(e.target.value);
-                  }}
+                <GeojsonInput
+                  onUpdateGeojson={setGeojson}
+                  geojson={JSON.stringify(geojson)}
                 />
-                {sampleGeojson === undefined && (
-                  <div>
-                    <span style={{ color: "red" }}>Invalid GeoJSON</span>
-                  </div>
-                )}
               </div>
             </div>
             <div>
-              <ReactMapGl
-                {...viewSate}
-                onViewStateChange={(newViewState: { viewState: ViewState }) =>
-                  setViewState(newViewState.viewState)
-                }
-                width="800px"
-                height="300px"
-                mapStyle="https://geoserveis.icgc.cat/contextmaps/osm-bright.json"
-              >
-                {
-                  //@ts-ignore
-                  <Source id="sampleData" type="geojson" data={sampleGeojson}>
-                    <Layer
-                      id="sampleLayer"
-                      paint={{ "circle-color": "#aa66dd" }}
-                      type="circle"
-                    />
-                  </Source>
-                }
-                {buffered && (
-                  //@ts-ignore
-                  <Source id={"bufferRing"} type="geojson" data={buffered}>
-                    <Layer
-                      id="bufferRingLayer"
-                      paint={{ "line-color": "#66eeaa" }}
-                      type="line"
-                    />
-                    <Layer
-                      id="bufferRingLayerFill"
-                      paint={{ "fill-color": "#66eeaa", "fill-opacity": 0.2 }}
-                      type="fill"
-                    />
-                  </Source>
-                )}
-              </ReactMapGl>
+              <ReactMap geojson={geojson} buffered={buffered} />
             </div>
             <div>
               <div className={styles.grid}>
@@ -148,19 +70,68 @@ const Home: NextPage = () => {
                 </button>
                 <button
                   onClick={() => {
-                    if (sampleGeojson !== undefined) {
+                    if (geojson !== undefined) {
                       const start = Date.now();
-                      const buf = buffer(sampleGeojson, 10, {
-                        units: "kilometers",
+                      const buf = buffer(geojson, bufferDistance, {
+                        units: bufferUnit,
                       });
                       setBuffered(buf);
                       const end = Date.now();
-                      console.log(`Buffer took ${end - start}ms`, buf);
+                      setTimes({ ...times, sync: end - start });
                     }
                   }}
                 >
                   Run buffer Synchronously
                 </button>
+                <button
+                  onClick={() => {
+                    if (geojson !== undefined) {
+                      const start = Date.now();
+                      const worker = new Worker(
+                        new URL("/src/workers/turf.worker.ts", import.meta.url)
+                      );
+
+                      worker.onmessage = ({
+                        data,
+                      }: MessageEvent<AllGeoJSON | null>) => {
+                        const end = Date.now();
+                        worker.terminate();
+                        if (data !== null) {
+                          //@ts-ignore
+                          setBuffered(data);
+                        } else {
+                        }
+                        setTimes({ ...times, async: end - start });
+                      };
+
+                      const message: TurfFunction = {
+                        functionName: "buffer",
+                        params: [
+                          geojson,
+                          bufferDistance,
+                          {
+                            units: bufferUnit,
+                          },
+                        ],
+                      };
+                      worker.postMessage(message);
+                    }
+                  }}
+                >
+                  Run buffer Async
+                </button>
+              </div>
+
+              <div className={styles.grid}>
+                <Loader type="Audio" color="#80c8f8" height={20} />
+              </div>
+
+              <div className={styles.grid}>
+                <span>
+                  {(times.async !== -1 || times.sync !== -1) && "Last runs:"}
+                  {times.async !== -1 && ` async: ${times.async}ms`}
+                  {times.sync !== -1 && ` sync: ${times.sync}ms`}
+                </span>
               </div>
             </div>
           </>
