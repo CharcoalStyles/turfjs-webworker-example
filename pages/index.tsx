@@ -14,13 +14,12 @@ import Loader from "react-loader-spinner";
 import { GeojsonInput } from "../src/components/GeojsonInput";
 import { ReactMap } from "../src/components/ReactMap";
 import { TurfFunction } from "../src/workers/turf.worker";
-
-const bufferDistance = 10;
-const bufferUnit = "kilometers";
+import { AsyncBuffer, BufferOnComplete, SyncBuffer } from "../src/buffers";
 
 const Home: NextPage = () => {
   const [loading, setLoading] = useState(true);
-  const [times, setTimes] = useState({ sync: -1, async: -1 });
+  const [syncTime, setSyncTime] = useState(-1);
+  const [asyncTime, setAsyncTime] = useState(-1);
   const [geojson, setGeojson] = useState<
     FeatureCollection<Geometry | GeometryCollection, Properties> | undefined
   >();
@@ -36,6 +35,17 @@ const Home: NextPage = () => {
         setLoading(false);
       });
   }, []);
+
+  const handleCompletedBuffer: BufferOnComplete = (
+    newGeojson,
+    newSyncTime,
+    newAsyncTime
+  ) => {
+    console.log({ newGeojson, newSyncTime, newAsyncTime });
+    newGeojson && setBuffered(newGeojson);
+    newSyncTime && setSyncTime(newSyncTime);
+    newAsyncTime && setAsyncTime(newAsyncTime);
+  };
 
   return (
     <div className={styles.container}>
@@ -74,13 +84,10 @@ const Home: NextPage = () => {
                 <button
                   onClick={() => {
                     if (geojson !== undefined) {
-                      const start = Date.now();
-                      const buf = buffer(geojson, bufferDistance, {
-                        units: bufferUnit,
+                      SyncBuffer({
+                        geojson: geojson,
+                        onComplete: handleCompletedBuffer,
                       });
-                      setBuffered(buf);
-                      const end = Date.now();
-                      setTimes({ ...times, sync: end - start });
                     }
                   }}
                 >
@@ -89,35 +96,10 @@ const Home: NextPage = () => {
                 <button
                   onClick={() => {
                     if (geojson !== undefined) {
-                      const start = Date.now();
-                      const worker = new Worker(
-                        new URL("/src/workers/turf.worker.ts", import.meta.url)
-                      );
-
-                      worker.onmessage = ({
-                        data,
-                      }: MessageEvent<AllGeoJSON | null>) => {
-                        const end = Date.now();
-                        worker.terminate();
-                        if (data !== null) {
-                          //@ts-ignore
-                          setBuffered(data);
-                        } else {
-                        }
-                        setTimes({ ...times, async: end - start });
-                      };
-
-                      const message: TurfFunction = {
-                        functionName: "buffer",
-                        params: [
-                          geojson,
-                          bufferDistance,
-                          {
-                            units: bufferUnit,
-                          },
-                        ],
-                      };
-                      worker.postMessage(message);
+                      AsyncBuffer({
+                        geojson: geojson,
+                        onComplete: handleCompletedBuffer,
+                      });
                     }
                   }}
                 >
@@ -131,9 +113,9 @@ const Home: NextPage = () => {
 
               <div className={styles.grid}>
                 <span>
-                  {(times.async !== -1 || times.sync !== -1) && "Last runs:"}
-                  {times.async !== -1 && ` async: ${times.async}ms`}
-                  {times.sync !== -1 && ` sync: ${times.sync}ms`}
+                  {(asyncTime !== -1 || syncTime !== -1) && "Last runs:"}
+                  {asyncTime !== -1 && ` async: ${asyncTime}ms`}
+                  {syncTime !== -1 && ` sync: ${syncTime}ms`}
                 </span>
               </div>
             </div>
