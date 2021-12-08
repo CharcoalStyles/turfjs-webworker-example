@@ -107,8 +107,20 @@ const Home: NextPage = () => {
                 </button>
               </div>
 
-              <div className={styles.grid}>
-                <Loader type="Audio" color="#80c8f8" height={20} />
+              <div
+                className={styles.grid}
+                style={{ display: "flex", flexDirection: "column" }}
+              >
+                <div>
+                  This shows that the page is still able to be interacted with.
+                </div>
+                <div>
+                  <Loader type="Audio" color="#80c8f8" height={20} />
+                </div>
+                <div>
+                  It should stop when using the sync buffer, but not when using
+                  the async buffer
+                </div>
               </div>
 
               <div className={styles.grid}>
