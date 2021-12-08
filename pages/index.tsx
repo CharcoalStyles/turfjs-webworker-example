@@ -60,6 +60,9 @@ const Home: NextPage = () => {
                 />
               </div>
             </div>
+            <div className={styles.grid}>
+              {`Total features: ${geojson?.features.length}`}
+            </div>
             <div>
               <ReactMap geojson={geojson} buffered={buffered} />
             </div>
