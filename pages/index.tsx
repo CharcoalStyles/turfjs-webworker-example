@@ -115,7 +115,7 @@ const Home: NextPage = () => {
                   This shows that the page is still able to be interacted with.
                 </div>
                 <div>
-                  <Loader type="Audio" color="#80c8f8" height={20} />
+                  <Loader type="Audio" color="#00BFFF" height={30} />
                 </div>
                 <div>
                   It should stop when using the sync buffer, but not when using

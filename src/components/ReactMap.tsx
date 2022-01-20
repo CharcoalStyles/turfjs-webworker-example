@@ -68,12 +68,12 @@ export const ReactMap = ({ geojson, buffered }: ReactMapProps) => {
         <Source id={"bufferRing"} type="geojson" data={buffered}>
           <Layer
             id="bufferRingLayer"
-            paint={{ "line-color": "#66eeaa" }}
+            paint={{ "line-color": "#EE4488" }}
             type="line"
           />
           <Layer
             id="bufferRingLayerFill"
-            paint={{ "fill-color": "#66eeaa", "fill-opacity": 0.2 }}
+            paint={{ "fill-color": "#EE4488", "fill-opacity": 0.2 }}
             type="fill"
           />
         </Source>
