@@ -78,9 +78,6 @@ const Home: NextPage = () => {
             </div>
             <div>
               <div className={styles.grid}>
-                <button onClick={() => setBuffered(undefined)}>
-                  Clear buffer
-                </button>
                 <button
                   onClick={() => {
                     if (geojson !== undefined) {
@@ -104,6 +101,12 @@ const Home: NextPage = () => {
                   }}
                 >
                   Run buffer Async
+                </button>
+              </div>
+
+              <div className={styles.grid}>
+                <button onClick={() => setBuffered(undefined)}>
+                  Clear buffer
                 </button>
               </div>
 
